@@ -1,0 +1,153 @@
+{% extends "earthquake_app/base.html" %}
+{% block title %}Fetch Data – Earthquake Monitor{% endblock %}
+{% block page_title %}Fetch Earthquake Data{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ── Fetch Form ─────────────────────────────────────────────── -->
+  <div class="col-12 col-lg-5">
+    <div class="card table-card">
+      <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-cloud-download me-2 text-danger"></i>USGS Earthquake API Fetch
+        </h6>
+        <p class="text-muted small mb-0 mt-1">Filters: Magnitude ≥ 6.0 only</p>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" id="fetchForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Start Date</label>
+            {{ form.start_date }}
+            {% if form.start_date.errors %}
+              <div class="text-danger small mt-1">{{ form.start_date.errors.0 }}</div>
+            {% endif %}
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">End Date</label>
+            {{ form.end_date }}
+            {% if form.end_date.errors %}
+              <div class="text-danger small mt-1">{{ form.end_date.errors.0 }}</div>
+            {% endif %}
+          </div>
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors.0 }}</div>
+          {% endif %}
+          <button class="btn btn-danger w-100 fw-semibold" type="submit" id="fetchBtn">
+            <span id="btnNormal"><i class="bi bi-lightning-charge me-2"></i>Fetch Earthquakes</span>
+            <span id="btnLoading" class="d-none">
+              <span class="spinner-border spinner-border-sm me-2"></span>Fetching…
+            </span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── API Alternative ──────────────────────────────────────── -->
+    <div class="card table-card mt-3">
+      <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-braces me-2 text-primary"></i>Or Use the REST API
+        </h6>
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted small">Trigger a fetch via POST request:</p>
+        <pre class="bg-dark text-success rounded p-3" style="font-size:.78rem;">POST /api/fetch/
+Content-Type: application/json
+
+{
+  "start_date": "2024-01-01",
+  "end_date":   "2024-01-31"
+}</pre>
+        <p class="text-muted small mt-2 mb-0">
+          See <a href="/api/earthquakes/" target="_blank">/api/earthquakes/</a> for results.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Result Panel ───────────────────────────────────────────── -->
+  <div class="col-12 col-lg-7">
+    {% if result %}
+    <div class="card table-card border-0">
+      <div class="card-header {% if result.errors %}bg-warning{% else %}bg-success{% endif %} text-white border-0 pt-4 pb-3 px-4">
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-check2-circle me-2"></i>
+          {% if result.errors %}Completed with Errors{% else %}Fetch Complete!{% endif %}
+        </h6>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="text-center p-3 border rounded">
+              <div class="display-6 fw-bold text-secondary">{{ result.fetched }}</div>
+              <div class="text-muted small">API Records</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-center p-3 border rounded">
+              <div class="display-6 fw-bold text-danger">{{ result.filtered }}</div>
+              <div class="text-muted small">After Filter</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-center p-3 border rounded">
+              <div class="display-6 fw-bold text-success">{{ result.inserted }}</div>
+              <div class="text-muted small">Inserted</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-center p-3 border rounded">
+              <div class="display-6 fw-bold text-warning">{{ result.skipped }}</div>
+              <div class="text-muted small">Duplicates</div>
+            </div>
+          </div>
+        </div>
+
+        {% if result.errors %}
+          <div class="alert alert-danger">
+            <strong>Errors encountered:</strong>
+            <ul class="mb-0 mt-1">
+              {% for err in result.errors %}
+                <li>{{ err }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if result.inserted > 0 %}
+          <a href="{% url 'earthquakes' %}" class="btn btn-danger">
+            <i class="bi bi-table me-1"></i>View Earthquake Records
+          </a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card table-card h-100 border-dashed">
+      <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-5">
+        <i class="bi bi-cloud-download display-2 text-muted mb-3"></i>
+        <h5 class="text-muted">Ready to Fetch</h5>
+        <p class="text-muted small">Select a date range and click <strong>Fetch Earthquakes</strong><br>
+        to pull data from the USGS API.</p>
+        <div class="text-muted small mt-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Only earthquakes with magnitude ≥ 6.0 will be saved.
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById("fetchForm").addEventListener("submit", function() {
+    document.getElementById("btnNormal").classList.add("d-none");
+    document.getElementById("btnLoading").classList.remove("d-none");
+    document.getElementById("fetchBtn").disabled = true;
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Earthquake Monitoring System{% endblock %}</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <style>
+    :root {
+      --sidebar-width: 260px;
+      --primary-gradient: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+      --sidebar-bg: #0b0f19;
+      --active-gradient: linear-gradient(90deg, rgba(255, 65, 108, 0.15) 0%, rgba(255, 75, 43, 0.02) 100%);
+      --accent-color: #ff416c;
+      --bg-light: #f4f7fe;
+    }
+    
+    body { 
+      background: var(--bg-light); 
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #1e293b;
+    }
+
+    #sidebar {
+      width: var(--sidebar-width); 
+      min-height: 100vh;
+      background: var(--sidebar-bg); 
+      position: fixed;
+      top: 0; left: 0; z-index: 200; 
+      display: flex; flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    #sidebar .sidebar-header {
+      padding: 1.8rem 1.5rem; 
+      background: linear-gradient(to bottom, rgba(255,255,255,0.03), transparent);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    #sidebar .nav-link {
+      color: #7e8b9b; 
+      padding: 0.95rem 1.5rem;
+      display: flex; align-items: center; gap: 0.9rem;
+      font-size: 0.92rem; font-weight: 500;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    #sidebar .nav-link i {
+      font-size: 1.15rem;
+      transition: transform 0.3s ease, color 0.3s ease;
+    }
+
+    #sidebar .nav-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    
+    #sidebar .nav-link:hover i {
+      transform: scale(1.1);
+      color: #ff416c;
+    }
+
+    #sidebar .nav-link.active {
+      background: var(--active-gradient);
+      color: #fff;
+      font-weight: 600;
+    }
+    
+    #sidebar .nav-link.active i {
+      color: #ff416c;
+    }
+
+    #sidebar .nav-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 15%;
+      height: 70%; width: 4px;
+      background: var(--primary-gradient);
+      border-radius: 0 4px 4px 0;
+      box-shadow: 0 0 10px #ff416c;
+    }
+
+    .operator-box {
+      padding: 1.25rem;
+      margin: 1rem;
+      background: rgba(255, 65, 108, 0.07);
+      border: 1px solid rgba(255, 65, 108, 0.15);
+      border-radius: 12px;
+    }
+
+    #content-wrapper {
+      margin-left: var(--sidebar-width);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    
+    .top-navbar {
+      background: #fff; padding: 1.2rem 2rem;
+      border-bottom: 1px solid #eef2f6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+    
+    .page-body { padding: 2rem; flex: 1; }
+
+    .stat-card {
+      border: none; border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(165, 173, 211, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      background: #fff;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(165, 173, 211, 0.2);
+    }
+    .stat-card .card-icon {
+      width: 50px; height: 50px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+    }
+    .stat-card .card-value { font-size: 1.75rem; font-weight: 700; color: #0f172a; }
+    .stat-card .card-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    
+    .table-card {
+      border: none; border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(165, 173, 211, 0.1);
+      overflow: hidden; background: #fff;
+    }
+
+    /* magnitude badges */
+    .magnitude-badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+    }
+    .mag-low     { background: #d1fae5; color: #065f46; }
+    .mag-medium  { background: #fef3c7; color: #92400e; }
+    .mag-high    { background: #ffedd5; color: #9a3412; }
+    .mag-extreme { background: #fee2e2; color: #991b1b; }
+
+    .auth-wrapper {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #f4f7fe 0%, #e2e8f0 100%); padding: 1.5rem;
+    }
+    .auth-card {
+      width: 100%; max-width: 440px; border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05); background: #fff; border: none;
+    }
+    .auth-logo { font-size: 2.8rem; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; }
+    .border-dashed { border: 2px dashed #cbd5e1 !important; }
+  </style>
+</head>
+<body>
+
+{% if request.session.user_id %}
+  <div id="sidebar">
+    <div class="sidebar-header d-flex align-items-center gap-2">
+      <i class="bi bi-activity text-danger fs-4" style="text-shadow: 0 0 10px #ff416c;"></i>
+      <span class="text-white fw-bold h5 mb-0" style="letter-spacing: 0.5px; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">EQ Monitor</span>
+    </div>
+    
+    <div class="nav flex-column mt-4">
+      <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="bi bi-grid-1x2-fill"></i> Dashboard
+      </a>
+      <a href="{% url 'earthquakes' %}" class="nav-link {% if request.resolver_match.url_name == 'earthquakes' %}active{% endif %}">
+        <i class="bi bi-collection-fill"></i> Earthquake Records
+      </a>
+      <a href="{% url 'fetch' %}" class="nav-link {% if request.resolver_match.url_name == 'fetch' %}active{% endif %}">
+        <i class="bi bi-cloud-arrow-down-fill"></i> Fetch USGS Data
+      </a>
+    </div>
+    
+    <div class="mt-auto">
+      <div class="operator-box">
+        <span class="d-block mb-1 text-uppercase fw-bold text-danger" style="font-size: 0.7rem; letter-spacing: 0.08em;">System Operator</span>
+        <strong class="text-white d-block text-truncate" style="font-size: 0.9rem;">
+          <i class="bi bi-person-badge text-danger me-1"></i>
+          {{ request.session.username }}
+        </strong>
+      </div>
+    </div>
+  </div>
+
+  <div id="content-wrapper">
+    <div class="top-navbar d-flex align-items-center justify-content-between">
+      <div class="fw-bold h5 mb-0">{% block page_title %}Dashboard{% endblock %}</div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-secondary small fw-medium">
+          <i class="bi bi-person-circle text-danger me-1"></i>{{ request.session.username }}
+        </span>
+        <a href="{% url 'logout' %}" class="btn btn-sm btn-danger px-3 rounded-pill fw-medium border-0" style="background: var(--primary-gradient);">
+          <i class="bi bi-box-arrow-right me-1"></i>Logout
+        </a>
+      </div>
+    </div>
+
+    <div class="page-body">
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show border-0 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+{% else %}
+  {% if messages %}
+    <div style="position:fixed;top:1rem;right:1rem;z-index:9999;min-width:300px;">
+      {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show shadow border-0" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% block auth_content %}{% endblock %}
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
