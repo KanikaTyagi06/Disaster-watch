@@ -101,3 +101,30 @@ class Earthquake(models.Model):
 
     def __str__(self):
         return f"M{self.magnitude} – {self.place} ({self.time})"
+    
+# ─────────────────────────────────────────────────────────────────────────────
+# WEATHER RECORD MODEL
+# ─────────────────────────────────────────────────────────────────────────────
+class WeatherRecord(models.Model):
+    DATA_TYPE_CHOICES = [
+        ("historical", "Historical"),
+        ("forecast",   "Forecast"),
+    ]
+
+    location_name     = models.CharField(max_length=255, null=True, blank=True)
+    latitude          = models.DecimalField(max_digits=9,  decimal_places=6)
+    longitude         = models.DecimalField(max_digits=9,  decimal_places=6)
+    date              = models.DateField()
+    temperature_max   = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    temperature_min   = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    precipitation_sum = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    data_type         = models.CharField(max_length=20, choices=DATA_TYPE_CHOICES, default="historical")
+    fetched_at        = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table        = "weather_record"
+        unique_together = ('latitude', 'longitude', 'date', 'data_type')
+        ordering        = ['-date']
+
+    def __str__(self):
+        return f"{self.date} | {self.location_name or f'{self.latitude},{self.longitude}'} ({self.data_type})"
