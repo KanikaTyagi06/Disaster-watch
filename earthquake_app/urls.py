@@ -12,4 +12,10 @@ urlpatterns = [
     path("dashboard/",   views.dashboard_view,  name="dashboard"),
     path("earthquakes/", views.earthquakes_view, name="earthquakes"),
     path("fetch/",       views.fetch_view,      name="fetch"),
+
+    # ── Weather ───────────────────────────────────────────
+    path("weather/",                views.weather_view,              name="weather"),
+    path("weather/fetch/",          views.weather_fetch_view,        name="weather_fetch"),
+    path("weather/forecast/",       views.weather_forecast_fetch_view, name="weather_forecast"),
+    path("weather/geocode/search/", views.geocode_search_view,       name="geocode_search"),
 ]

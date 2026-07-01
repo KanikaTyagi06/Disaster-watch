@@ -1,0 +1,190 @@
+{% extends "earthquake_app/base.html" %}
+{% block title %}Weather Records – Earthquake Monitor{% endblock %}
+{% block page_title %}Weather Records{% endblock %}
+
+{% block content %}
+
+<!-- ── Filter Bar ── -->
+<div class="card table-card mb-4">
+  <div class="card-body p-4">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-12 col-md-2">
+        <label class="form-label small fw-semibold">Date From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label small fw-semibold">Date To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label small fw-semibold">Location</label>
+        <input type="text" name="location" value="{{ location }}"
+          placeholder="e.g. New Delhi, London…" class="form-control">
+      </div>
+      <div class="col-12 col-md-1">
+        <label class="form-label small fw-semibold">Type</label>
+        <select name="data_type" class="form-select">
+          <option value=""            {% if data_type == ""            %}selected{% endif %}>All</option>
+          <option value="historical"  {% if data_type == "historical"  %}selected{% endif %}>Historical</option>
+          <option value="forecast"    {% if data_type == "forecast"    %}selected{% endif %}>Forecast</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label small fw-semibold">Sort By</label>
+        <select name="sort" class="form-select">
+          <option value="-date"              {% if sort_by == "-date"              %}selected{% endif %}>Newest First</option>
+          <option value="date"               {% if sort_by == "date"               %}selected{% endif %}>Oldest First</option>
+          <option value="-temperature_max"   {% if sort_by == "-temperature_max"   %}selected{% endif %}>Highest Temp</option>
+          <option value="-precipitation_sum" {% if sort_by == "-precipitation_sum" %}selected{% endif %}>Most Rain</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2 d-flex gap-2 align-items-end">
+        <button type="submit" class="btn text-white fw-semibold flex-fill"
+          style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
+          <i class="bi bi-funnel-fill me-1"></i>Filter
+        </button>
+        <a href="{% url 'weather' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Records Table ── -->
+<div class="card table-card">
+  <div class="card-header bg-white border-0 pt-4 pb-3 px-4 d-flex align-items-center justify-content-between">
+    <h6 class="fw-bold mb-0">
+      <i class="bi bi-cloud-sun me-2 text-info"></i>
+      Weather Records — {{ total }} total
+    </h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'weather_fetch' %}" class="btn btn-sm text-white fw-semibold"
+        style="background: linear-gradient(135deg, #0ea5e9, #0284c7);"
+        title="Fetch historical weather data">
+        <i class="bi bi-clock-history me-1"></i>+ Historical
+      </a>
+      <a href="{% url 'weather_forecast' %}" class="btn btn-sm text-white fw-semibold"
+        style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"
+        title="Fetch forecast weather data">
+        <i class="bi bi-calendar2-week me-1"></i>+ Forecast
+      </a>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead style="background:#f8fafc;">
+        <tr>
+          <th class="px-4 py-3 text-muted small text-uppercase">Date</th>
+          <th class="py-3 text-muted small text-uppercase">Location</th>
+          <th class="py-3 text-muted small text-uppercase">Type</th>
+          <th class="py-3 text-muted small text-uppercase">Temp Max</th>
+          <th class="py-3 text-muted small text-uppercase">Temp Min</th>
+          <th class="py-3 text-muted small text-uppercase">Precipitation</th>
+          <th class="py-3 text-muted small text-uppercase">Fetched At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in page_obj %}
+        <tr>
+          <td class="px-4 fw-semibold">{{ record.date }}</td>
+          <td>
+            {% if record.location_name %}
+              <span class="fw-medium">{{ record.location_name }}</span>
+            {% else %}
+              <span class="text-muted small">{{ record.latitude }}, {{ record.longitude }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if record.data_type == "forecast" %}
+              <span class="magnitude-badge" style="background:#ede9fe; color:#6d28d9;">
+                <i class="bi bi-calendar2-week me-1"></i>Forecast
+              </span>
+            {% else %}
+              <span class="magnitude-badge" style="background:#e0f2fe; color:#0369a1;">
+                <i class="bi bi-clock-history me-1"></i>Historical
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            {% if record.temperature_max != None %}
+              {% if record.temperature_max >= 35 %}
+                <span class="magnitude-badge mag-extreme">{{ record.temperature_max }}°C</span>
+              {% elif record.temperature_max >= 25 %}
+                <span class="magnitude-badge mag-high">{{ record.temperature_max }}°C</span>
+              {% else %}
+                <span class="magnitude-badge mag-low">{{ record.temperature_max }}°C</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if record.temperature_min != None %}
+              <span class="magnitude-badge mag-medium">{{ record.temperature_min }}°C</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if record.precipitation_sum and record.precipitation_sum > 0 %}
+              <span class="magnitude-badge" style="background:#e0f2fe; color:#0369a1;">
+                {{ record.precipitation_sum }} mm
+              </span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ record.fetched_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-5 text-muted">
+            <i class="bi bi-cloud-slash display-4 d-block mb-2"></i>
+            <p class="mb-2">No weather records found.</p>
+            <a href="{% url 'weather_fetch' %}" class="btn btn-sm text-white me-2"
+              style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
+              <i class="bi bi-clock-history me-1"></i>Fetch Historical
+            </a>
+            <a href="{% url 'weather_forecast' %}" class="btn btn-sm text-white"
+              style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+              <i class="bi bi-calendar2-week me-1"></i>Fetch Forecast
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+    <span class="text-muted small">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+              href="?page={{ page_obj.previous_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&location={{ location }}&data_type={{ data_type }}&sort={{ sort_by }}">
+              Previous
+            </a>
+          </li>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+              href="?page={{ page_obj.next_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&location={{ location }}&data_type={{ data_type }}&sort={{ sort_by }}">
+              Next
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

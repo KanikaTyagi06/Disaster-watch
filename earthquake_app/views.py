@@ -5,10 +5,14 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Max
+import json
+from django.http import JsonResponse
 
-from .models import AppUser, Earthquake
-from .forms  import LoginForm, RegisterForm, FetchDataForm
+from .models import AppUser, Earthquake, WeatherRecord
+from .forms  import LoginForm, RegisterForm, FetchDataForm, FetchWeatherForm, FetchForecastForm
 from .usgs_fetcher import fetch_and_store
+from .open_meteo_fetcher import fetch_and_store_weather, fetch_and_store_forecast
+from .geocoding_fetcher import search_locations
 
 
 def login_required_custom(view_func):
@@ -178,4 +182,174 @@ def fetch_view(request):
         "form":     form,
         "result":   result,
         "username": request.session.get("username"),
+    })
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WEATHER VIEWS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@login_required_custom
+def geocode_search_view(request):
+    """
+    AJAX endpoint — returns matching city list as JSON.
+    Called by the city search box in weather fetch forms.
+    GET /api/geocode/search/?q=delhi
+    """
+    query   = request.GET.get("q", "").strip()
+    results = search_locations(query) if len(query) >= 2 else []
+    return JsonResponse({"results": results})
+
+
+@login_required_custom
+def weather_fetch_view(request):
+    form   = FetchWeatherForm()
+    result = None
+
+    if request.method == "POST":
+        form = FetchWeatherForm(request.POST)
+        if form.is_valid():
+            result = fetch_and_store_weather(
+                start_date=str(form.cleaned_data["start_date"]),
+                end_date=str(form.cleaned_data["end_date"]),
+                latitude=form.cleaned_data["latitude"],
+                longitude=form.cleaned_data["longitude"],
+                location_name=form.cleaned_data["location_name"],
+            )
+            if result["errors"]:
+                for err in result["errors"]:
+                    messages.error(request, err)
+            elif result["inserted"] == 0 and result["skipped"] == 0:
+                messages.info(request, "No data returned from API for this range.")
+            else:
+                messages.success(
+                    request,
+                    f"✅ Fetch complete! Inserted {result['inserted']} new record(s), "
+                    f"skipped {result['skipped']} duplicate(s)."
+                )
+
+    return render(request, "earthquake_app/weather_fetch.html", {
+        "form":     form,
+        "result":   result,
+        "username": request.session.get("username"),
+    })
+
+
+@login_required_custom
+def weather_forecast_fetch_view(request):
+    form   = FetchForecastForm()
+    result = None
+
+    if request.method == "POST":
+        form = FetchForecastForm(request.POST)
+        if form.is_valid():
+            result = fetch_and_store_forecast(
+                latitude=form.cleaned_data["latitude"],
+                longitude=form.cleaned_data["longitude"],
+                forecast_days=form.cleaned_data["forecast_days"],
+                location_name=form.cleaned_data["location_name"],
+            )
+            if result["errors"]:
+                for err in result["errors"]:
+                    messages.error(request, err)
+            elif result["inserted"] == 0 and result["skipped"] == 0:
+                messages.info(request, "No forecast data returned from API.")
+            else:
+                messages.success(
+                    request,
+                    f"✅ Forecast fetched! Inserted {result['inserted']} new record(s), "
+                    f"skipped {result['skipped']} duplicate(s)."
+                )
+
+    return render(request, "earthquake_app/weather_forecast.html", {
+        "form":     form,
+        "result":   result,
+        "username": request.session.get("username"),
+    })
+
+
+@login_required_custom
+def weather_view(request):
+    qs        = WeatherRecord.objects.all()
+    date_from = request.GET.get("date_from",  "")
+    date_to   = request.GET.get("date_to",    "")
+    location  = request.GET.get("location",   "")
+    data_type = request.GET.get("data_type",  "")
+    sort_by   = request.GET.get("sort",       "-date")
+    latitude  = request.GET.get("latitude",   "")
+    longitude = request.GET.get("longitude",  "")
+    auto_fetched = False
+    fetch_result = None
+
+    # ── Smart Auto-Fetch Logic ──────────────────────────────────────────
+    # Agar user ne location + dates + lat/lon diya hai aur DB mein data
+    # nahi hai toh automatically API se fetch karke save karo
+    if latitude and longitude and date_from and date_to and data_type in ("historical", "forecast"):
+        existing = WeatherRecord.objects.filter(
+            latitude=latitude,
+            longitude=longitude,
+            date__gte=date_from,
+            date__lte=date_to,
+            data_type=data_type,
+        ).exists()
+
+        if not existing:
+            try:
+                if data_type == "historical":
+                    fetch_result = fetch_and_store_weather(
+                        start_date=date_from,
+                        end_date=date_to,
+                        latitude=latitude,
+                        longitude=longitude,
+                        location_name=location,
+                    )
+                else:
+                    from datetime import date, timedelta
+                    today     = date.today()
+                    end_date  = date_to if date_to else str(today + timedelta(days=7))
+                    days_diff = (date.fromisoformat(end_date) - today).days + 1
+                    days_diff = max(1, min(days_diff, 16))
+                    fetch_result = fetch_and_store_forecast(
+                        latitude=latitude,
+                        longitude=longitude,
+                        forecast_days=days_diff,
+                        location_name=location,
+                    )
+                auto_fetched = True
+            except Exception as e:
+                messages.error(request, f"Auto-fetch error: {e}")
+
+    # ── Filter DB records ───────────────────────────────────────────────
+    if date_from:  qs = qs.filter(date__gte=date_from)
+    if date_to:    qs = qs.filter(date__lte=date_to)
+    if location:   qs = qs.filter(location_name__icontains=location)
+    if latitude:   qs = qs.filter(latitude=latitude)
+    if longitude:  qs = qs.filter(longitude=longitude)
+    if data_type in ("historical", "forecast"):
+        qs = qs.filter(data_type=data_type)
+
+    allowed_sorts = [
+        "date", "-date",
+        "temperature_max", "-temperature_max",
+        "precipitation_sum", "-precipitation_sum",
+    ]
+    if sort_by not in allowed_sorts:
+        sort_by = "-date"
+    qs = qs.order_by(sort_by)
+
+    paginator = Paginator(qs, 25)
+    page_obj  = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "earthquake_app/weather.html", {
+        "page_obj":     page_obj,
+        "total":        qs.count(),
+        "date_from":    date_from,
+        "date_to":      date_to,
+        "location":     location,
+        "data_type":    data_type,
+        "sort_by":      sort_by,
+        "latitude":     latitude,
+        "longitude":    longitude,
+        "auto_fetched": auto_fetched,
+        "fetch_result": fetch_result,
+        "username":     request.session.get("username"),
     })

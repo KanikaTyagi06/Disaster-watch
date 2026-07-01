@@ -173,6 +173,18 @@
       <a href="{% url 'fetch' %}" class="nav-link {% if request.resolver_match.url_name == 'fetch' %}active{% endif %}">
         <i class="bi bi-cloud-arrow-down-fill"></i> Fetch USGS Data
       </a>
+
+      <hr style="border-color: rgba(255,255,255,0.07); margin: 0.5rem 1.5rem;">
+
+      <a href="{% url 'weather' %}" class="nav-link {% if request.resolver_match.url_name == 'weather' %}active{% endif %}">
+        <i class="bi bi-cloud-sun-fill"></i> Weather Records
+      </a>
+      <a href="{% url 'weather_fetch' %}" class="nav-link {% if request.resolver_match.url_name == 'weather_fetch' %}active{% endif %}">
+        <i class="bi bi-cloud-arrow-down-fill"></i> Fetch Weather
+      </a>
+      <a href="{% url 'weather_forecast' %}" class="nav-link {% if request.resolver_match.url_name == 'weather_forecast' %}active{% endif %}">
+        <i class="bi bi-calendar2-week-fill"></i> Fetch Forecast
+      </a>
     </div>
     
     <div class="mt-auto">
