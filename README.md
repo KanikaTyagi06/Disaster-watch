@@ -578,6 +578,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 - [Django REST Framework](https://www.django-rest-framework.org/) — REST API layer
 - [Bootstrap 5](https://getbootstrap.com/) — responsive UI
 - [Chart.js](https://www.chartjs.org/) — magnitude distribution chart
+- 
 
 ---
 
